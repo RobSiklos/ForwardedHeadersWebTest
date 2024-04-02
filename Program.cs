@@ -19,8 +19,8 @@ public class Program
             options.ForwardLimit = null;
 
             // Trust all known networks, for testing.
-            options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.Parse("0.0.0.0"), 0));
-            options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.Parse("::"), 0));
+            options.KnownProxies.Clear();
+            options.KnownNetworks.Clear();
         });
 
         var app = builder.Build();
@@ -28,8 +28,10 @@ public class Program
         // Configure the HTTP request pipeline.
         app.Use((context, next) =>
         {
-            Console.WriteLine(context.Request.Scheme); // http
-            Console.WriteLine(context.Request.Headers["X-Forwarded-Proto"]); // https
+            Console.WriteLine($"Original scheme: {context.Request.Scheme}"); // http
+            Console.WriteLine($"Original IP: [{context.Connection?.RemoteIpAddress}]:{context.Connection?.RemotePort}");
+            Console.WriteLine($"Original X-Forwarded-For: {context.Request.Headers["X-Forwarded-For"]}"); // https
+            Console.WriteLine($"Original X-Forwarded-Proto: {context.Request.Headers["X-Forwarded-Proto"]}"); // https
             Console.WriteLine("----");
             return next();
         });
@@ -38,9 +40,15 @@ public class Program
 
         app.Use((context, next) =>
         {
-            Console.WriteLine(context.Request.Scheme); // https
-            Console.WriteLine(context.Request.Headers["X-Forwarded-Proto"]); // empty
-            Console.WriteLine(context.Request.Headers["X-Original-Proto"]); // http *** SHOULD BE https ***
+            Console.WriteLine($"New scheme: {context.Request.Scheme}"); // https
+            Console.WriteLine($"New IP: [{context.Connection?.RemoteIpAddress}]:{context.Connection?.RemotePort}");
+            Console.WriteLine($"New X-Forwarded-For: {context.Request.Headers["X-Forwarded-For"]}");
+            Console.WriteLine($"New X-Forwarded-Proto: {context.Request.Headers["X-Forwarded-Proto"]}"); // empty
+            Console.WriteLine($"New X-Original-For: {context.Request.Headers["X-Original-For"]}");
+
+            // *** HERE IS THE PROBLEM ***
+            Console.WriteLine($"New X-Original-Proto: {context.Request.Headers["X-Original-Proto"]}"); // http *** SHOULD BE https ***
+            
             Console.WriteLine("====================");
             return next();
         });
